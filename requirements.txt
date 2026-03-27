@@ -1,3 +1,9 @@
 fastapi
 uvicorn
 python-dotenv
+joblib
+scikit-learn
+pandas
+numpy
+pydantic
+firebase-admin

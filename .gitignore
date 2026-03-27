@@ -1,4 +1,21 @@
+v.env
+.env.local
+.env.development
+.env.production
 venv/
+__pycache__/
+*.log
+firebaseServiceAccount.json
 __pycache__/
 *.pyc
 .env
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
