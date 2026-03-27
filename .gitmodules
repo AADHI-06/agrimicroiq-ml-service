@@ -1,0 +1,3 @@
+[submodule "ml-service"]
+	path = ml-service
+	url = https://github.com/AADHI-06/agrimicroiq-ml-service.git
