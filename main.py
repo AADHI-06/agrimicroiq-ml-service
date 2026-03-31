@@ -14,27 +14,35 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Initialize Firebase Admin
-cred = None
-service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+# Initialize Firebase Admin using discrete environment variables (Secure deployment standard)
+project_id = os.getenv("FIREBASE_PROJECT_ID")
+client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
+private_key = os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n")
 
-if service_account_json:
+cred = None
+if project_id and client_email and private_key:
     try:
-        import json
-        cert_dict = json.loads(service_account_json)
+        cert_dict = {
+            "type": "service_account",
+            "project_id": project_id,
+            "private_key_id": "api-hotfix",
+            "private_key": private_key,
+            "client_email": client_email,
+            "client_id": "api-hotfix",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{client_email.replace('@', '%40')}"
+        }
         cred = credentials.Certificate(cert_dict)
     except Exception as e:
-        print(f"Warning: Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
-
-if not cred:
-    cred_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "firebaseServiceAccount.json")
-    if os.path.exists(cred_path):
-        cred = credentials.Certificate(cred_path)
+        print(f"Warning: Failed to parse Firebase credentials from env vars: {e}")
 
 if not firebase_admin._apps:
     if cred:
         firebase_admin.initialize_app(cred)
     else:
+        # Fallback to default if no env vars (e.g. local emulators)
         firebase_admin.initialize_app()
 
 from typing import Optional
