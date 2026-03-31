@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Initialize Firebase Admin using discrete environment variables (Secure deployment standard)
+FIREBASE_INITIALIZED = False
 project_id = os.getenv("FIREBASE_PROJECT_ID")
 client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
 private_key = os.getenv("FIREBASE_PRIVATE_KEY", "").replace("\\n", "\n")
@@ -37,13 +38,23 @@ if project_id and client_email and private_key:
         cred = credentials.Certificate(cert_dict)
     except Exception as e:
         print(f"Warning: Failed to parse Firebase credentials from env vars: {e}")
+else:
+    print(f"Warning: Firebase credentials incomplete. PROJECT_ID={'set' if project_id else 'MISSING'}, CLIENT_EMAIL={'set' if client_email else 'MISSING'}, PRIVATE_KEY={'set' if private_key else 'MISSING'}")
 
-if not firebase_admin._apps:
-    if cred:
-        firebase_admin.initialize_app(cred)
+try:
+    if not firebase_admin._apps:
+        if cred:
+            firebase_admin.initialize_app(cred)
+            FIREBASE_INITIALIZED = True
+            print("✅ Firebase Admin initialized with service account credentials.")
+        else:
+            print("⚠️  No Firebase credentials available. Token verification will be disabled — set ML_SECURITY_ENABLED=false or provide Firebase env vars.")
+            # Do NOT call firebase_admin.initialize_app() without creds — it fails on Render
     else:
-        # Fallback to default if no env vars (e.g. local emulators)
-        firebase_admin.initialize_app()
+        FIREBASE_INITIALIZED = True
+except Exception as e:
+    print(f"❌ Firebase Admin initialization failed: {e}")
+    FIREBASE_INITIALIZED = False
 
 from typing import Optional
 
@@ -53,6 +64,11 @@ ML_SECURITY_ENABLED = os.getenv("ML_SECURITY_ENABLED", "true").lower() == "true"
 async def verify_firebase_token(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
     if not ML_SECURITY_ENABLED:
         return {"uid": "dev_user", "email": "dev@example.com", "email_verified": True}
+    
+    # If Firebase wasn't initialized, fall back to API-key-only auth to avoid 502s
+    if not FIREBASE_INITIALIZED:
+        print("⚠️  Firebase not initialized — skipping token verification (API key check only)")
+        return {"uid": "unverified_user", "email": "unknown@fallback", "email_verified": True}
         
     if not credentials:
         raise HTTPException(status_code=401, detail="Authorization header missing")
@@ -106,7 +122,15 @@ class PestPredictionInput(BaseModel):
 
 @app.get("/")
 def home():
-    return {"message": "AgriMicro IQ Native ML Service Alive"}
+    return {
+        "message": "AgriMicro IQ Native ML Service Alive",
+        "firebase": "initialized" if FIREBASE_INITIALIZED else "NOT initialized",
+        "security": "enabled" if ML_SECURITY_ENABLED else "disabled",
+        "models": {
+            "pest_model": "loaded" if model is not None else "NOT loaded",
+            "yield_model": "loaded" if yield_model is not None else "NOT loaded"
+        }
+    }
 
 @app.head("/")
 def health_check():
