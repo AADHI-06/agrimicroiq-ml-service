@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Header, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 import os
@@ -57,6 +59,20 @@ async def verify_firebase_token(credentials: Optional[HTTPAuthorizationCredentia
         raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
 
 app = FastAPI()
+
+# Phase 74: Stabilize Integration (CORS & Security)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://agri-micro-iq.web.app",
+        "https://agrimicroiq-app.onrender.com",
+        "http://localhost:3000"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 API_KEY = os.getenv("ML_SERVICE_API_KEY", "test_key_123")
 BASE_DIR = os.path.dirname(__file__)
@@ -189,4 +205,6 @@ async def optimize_resource(data: dict, user: dict = Depends(verify_firebase_tok
     return {"fertilizerAmount": round(fert, 1), "waterRequirement": round(water, 1)}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    # Render maps standard PORT env var automatically
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
