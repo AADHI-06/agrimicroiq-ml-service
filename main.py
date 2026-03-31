@@ -108,6 +108,10 @@ class PestPredictionInput(BaseModel):
 def home():
     return {"message": "AgriMicro IQ Native ML Service Alive"}
 
+@app.head("/")
+def health_check():
+    return {}
+
 @app.post("/predict-pest")
 async def predict_pest(data: PestPredictionInput, user: dict = Depends(verify_firebase_token)):
     if model is None or label_encoders is None:
